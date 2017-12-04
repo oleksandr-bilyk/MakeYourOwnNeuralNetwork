@@ -1,3 +1,7 @@
 source https://www.nuget.org/api/v2
+framework: netcoreapp2.0
+copy_local: true
+nuget FSharp.Core
 nuget MathNet.Numerics
 nuget MathNet.Numerics.FSharp
+nuget SixLabors.ImageSharp
