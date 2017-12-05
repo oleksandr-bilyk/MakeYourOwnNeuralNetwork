@@ -4,6 +4,9 @@ open MathNet.Numerics
 open System
 open MathNet.Numerics.LinearAlgebra
 
+// Byte value must be normalized to range from 0.01 to 0.99.
+let normanizeByte (v : byte) = Convert.ToDouble(v) / 255.0 * 0.98 + 0.01
+
 let randomMatrix rows cols = 
     let stdDev = 1.0 / (sqrt (float cols))
     DenseMatrix.init rows cols (fun _ _ -> Normal.Sample(0.0, stdDev) |> float)

@@ -1,18 +1,17 @@
 ﻿module Program
 
 open MnistDatabase
-let data_Test10kImages = @".\Data\t10k-images-idx3-ubyte.gz"
-let data_Test10kLabels = @".\Data\t10k-labels-idx1-ubyte.gz"
-let data_TrainImages = @".\Data\train-images-idx3-ubyte.gz"
-let data_TrainLabels = @".\Data\train-labels-idx1-ubyte.gz"
+open MnistDatabaseExtraction
+
+let dataFilesTest = { Labels = @".\Data\t10k-labels-idx1-ubyte.gz"; Images = @".\Data\t10k-images-idx3-ubyte.gz" }
+let dataFilesTrain = { Labels =  @".\Data\train-labels-idx1-ubyte.gz"; Images = @".\Data\train-images-idx3-ubyte.gz" }
 
 [<EntryPoint>]
 let main argv =
+    argv |> ignore
     // Write all test images
-    MnistDatabaseExtraction.mnistLabeledImages 
-        data_Test10kImages
-        data_Test10kLabels
-        @"C:\Temp\Images"
+    extractMnistDatabaseLabeledImages dataFilesTest @"C:\Temp\Images\Test"
+    extractMnistDatabaseLabeledImages dataFilesTrain @"C:\Temp\Images\Train"
 
     // let a = readMnistDatabaseFromCompressedFile fileName |> Array.ofSeq
     // printfn "%A" a.Length
