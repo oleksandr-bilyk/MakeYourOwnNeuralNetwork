@@ -9,10 +9,10 @@ class neuralNetwork:
         self.hnodes = hiddennodes
         self.onodes = outputnodes
         self.lr = learningrate
-        #self.wih = numpy.random.normal(0.0, pow(self.hnodes, - 0.5), (self.hnodes, self.inodes))
-        self.wih = numpy.array([[-0.59306787,  0.25274925, -0.32602831], [-0.16685239,  0.22542431, -0.36808796], [ 0.81883787,  1.29124618, -0.6584239 ]])
-        #self.who = numpy.random.normal(0.0, pow(self.onodes, -0.5), (self.onodes, self.hnodes))
-        self.who = numpy.array([[ 0.80042512,  0.35423876,  0.16241759], [-1.52660991, -0.82271924,  0.23120044], [ 0.66190966,  0.31868365,  0.39380777]])
+        self.wih = numpy.random.normal(0.0, pow(self.hnodes, - 0.5), (self.hnodes, self.inodes))
+        #self.wih = numpy.array([[-0.59306787,  0.25274925, -0.32602831], [-0.16685239,  0.22542431, -0.36808796], [ 0.81883787,  1.29124618, -0.6584239 ]])
+        self.who = numpy.random.normal(0.0, pow(self.onodes, -0.5), (self.onodes, self.hnodes))
+        #self.who = numpy.array([[ 0.80042512,  0.35423876,  0.16241759], [-1.52660991, -0.82271924,  0.23120044], [ 0.66190966,  0.31868365,  0.39380777]])
         self.activation_function = lambda x: scipy.special.expit(x)
         pass
     

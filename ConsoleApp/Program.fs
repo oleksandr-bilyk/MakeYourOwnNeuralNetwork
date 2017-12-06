@@ -2,6 +2,9 @@
 
 open MnistDatabase
 open MnistDatabaseExtraction
+open MnistDatabaseNeuralNetwork
+open System
+open System.IO
 
 let dataFilesTest = { Labels = @".\Data\t10k-labels-idx1-ubyte.gz"; Images = @".\Data\t10k-images-idx3-ubyte.gz" }
 let dataFilesTrain = { Labels =  @".\Data\train-labels-idx1-ubyte.gz"; Images = @".\Data\train-images-idx3-ubyte.gz" }
@@ -9,14 +12,43 @@ let dataFilesTrain = { Labels =  @".\Data\train-labels-idx1-ubyte.gz"; Images = 
 [<EntryPoint>]
 let main argv =
     argv |> ignore
-    // Write all test images
-    extractMnistDatabaseLabeledImages dataFilesTest @"C:\Temp\Images\Test"
-    extractMnistDatabaseLabeledImages dataFilesTrain @"C:\Temp\Images\Train"
-
-    // let a = readMnistDatabaseFromCompressedFile fileName |> Array.ofSeq
-    // printfn "%A" a.Length
-    
-    //let a = AppDomain.CurrentDomain.GetAssemblies()
-    //let b = a
+    let extreactionDataCommand = "1"
+    let trainingAndQueringTest = "2"
+    printfn "This application demonstrates simple F# neural network that recognizes \"THE MNIST DATABASE of handwritten digits\" http://yann.lecun.com/exdb/mnist/."
+    printfn "Press %s to extract handwritten digits as image files." extreactionDataCommand
+    printfn "Press %s to run neural network training and recognition." trainingAndQueringTest
+    let command = Console.ReadLine()
+    if command = extreactionDataCommand then
+        printfn "Enter existing directory name to store image files:"
+        let directory = Console.ReadLine()
+        if not (Directory.Exists(directory)) then failwith "Directory must exist."
+        let subfolder = Path.Combine(directory, "FSharpNeuralNetwork-MNIST-dataset-images")
+        Directory.CreateDirectory(subfolder) |> ignore
+        let extractToNewFolder dataFiles directoryToCreate =
+            Directory.CreateDirectory(directoryToCreate) |> ignore
+            extractMnistDatabaseLabeledImages dataFiles directoryToCreate
+        extractToNewFolder dataFilesTest (Path.Combine(subfolder, "Test"))
+        extractToNewFolder dataFilesTrain (Path.Combine(subfolder, "Train"))
+        printfn "Files extraction completed."
+    else if command = trainingAndQueringTest then
+        // Update progress only when next one percent or total records is processed.
+        let logPercentProgress (percentUpdated : int -> unit) =
+            let logTrainingProgress recordCount = 
+                let mutable percentOriginal = -1;
+                let logIter currentIndex = 
+                    let percentCurrent = (currentIndex |> float) / (recordCount |> float) * 100.0 |> int
+                    if percentCurrent <> percentOriginal then
+                        percentOriginal <- percentCurrent
+                        percentUpdated percentCurrent
+                    ()
+                logIter
+            logTrainingProgress
+        let trained = train dataFilesTrain (logPercentProgress (printfn "Training progress: %i%%"))
+        test trained dataFilesTest |> (fun r -> r * 100.0 |> printfn "Learning performance score: %.2f%%")
+        printfn "Neural network execution completed."
+    else
+        printfn "Unexpected command '%s'" command
+    Console.ReadKey() |> ignore
+    printfn "Press any key to exit."
     0 // return an integer exit code
 

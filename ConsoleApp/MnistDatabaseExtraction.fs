@@ -1,4 +1,4 @@
-/// Extracts MNIST database content as user friendly files.
+/// Extracts THE MNIST DATABASE of handwritten digits (http://yann.lecun.com/exdb/mnist/) content as user human recognized images.
 module MnistDatabaseExtraction
 
 open System.IO

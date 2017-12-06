@@ -1,5 +1,4 @@
 // THE MNIST DATABASE reading module
-// http://yann.lecun.com/exdb/mnist/
 module MnistDatabase
 
 open System
@@ -12,11 +11,13 @@ let openUncompressedStream fileName : Stream =
 
 let readNetworkInt (binaryReader : BinaryReader) = 
     let intRaw = binaryReader.ReadInt32()
+    // According to THE MNIST DATABASE documentation (http://yann.lecun.com/exdb/mnist/)
+    // All the integers in the files are stored in the MSB first (high endian) format used by most non-Intel processors. 
     System.Net.IPAddress.NetworkToHostOrder(intRaw)
 
-type FileHeader = { ImagesCount : int; RowsCount : int; ColumnsCount : int }
+type ImagesFileHeader = { ImagesCount : int; RowsCount : int; ColumnsCount : int }
 
-let mnistImagesData stream : (FileHeader * byte[] seq) = 
+let mnistImagesData stream : (ImagesFileHeader * byte[] seq) = 
     let binaryReader = new BinaryReader(stream)
     let readNextInt () = readNetworkInt binaryReader
     let magicNumber = readNextInt ()
@@ -36,6 +37,9 @@ let mnistLabelsData stream : (int * byte seq) =
     let labelsSeq = seq { for _i = 1 to itemsCount do yield binaryReader.ReadByte() }
     itemsCount, labelsSeq
 
+// THE MNIST DATABASE of handwritten digits (http://yann.lecun.com/exdb/mnist/) are stored in pairs of custom binary files. 
+// Images file contains array of image data.
+// Labels file contains number digits depicted on images.
 type MnistDataFileNamesPair = { Labels: string; Images: string }
 
 let mnistLabeledImageSequence (dataFiles : MnistDataFileNamesPair) =

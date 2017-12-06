@@ -28,7 +28,7 @@
             "program": "${workspaceFolder}/ConsoleApp/bin/Debug/netcoreapp2.0/ConsoleApp.dll",
             "args": [],
             "cwd": "${workspaceFolder}",
-            "console": "internalConsole",
+            "console": "integratedTerminal",
             "stopAtEntry": false,
             "internalConsoleOptions": "openOnSessionStart"
         },
