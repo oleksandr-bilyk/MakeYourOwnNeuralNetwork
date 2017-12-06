@@ -9,7 +9,9 @@ open MathNet.Numerics.LinearAlgebra
 let minDigit = 0uy
 let maxDigit = 9uy
 let countDigit = maxDigit + 1uy |> int
-let learningRateDefault = 0.3
+
+// Experementally taken value.
+let learningRateDefault = 0.2
 
 let mnistLabeledDataNormalizedSequence (dataFiles : MnistDataFileNamesPair) =
     let imagesHeader, labeledImages, disposableComposite = mnistLabeledImageSequence dataFiles
