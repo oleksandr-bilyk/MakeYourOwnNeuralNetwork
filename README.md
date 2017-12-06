@@ -8,5 +8,11 @@ To run application you should be familiar with:
 - Paket (https://fsprojects.github.io/Paket/getting-started.html)
 
 Console Application (ConsoleApp folder) has programe with two options:
-1. Extract handwritten digits as image files.
-2. Run neural network training and recognition.
+1. Extract handwritten digits as image files. There are 60.000 images for training and 10.000 images for testing.
+
+<![Extracted files](https://github.com/oleksandr-bilyk/MakeYourOwnNeuralNetwork/doc/ExtractedFiles.png)>
+
+2. Run neural network training and recognition. It takes few minutes to train neural network and testing functionality shows Learning performance score above 94% of right recognitions.
+
+Hope you will anjoy it :) 
+Regards, Oleksandr Bilyk
