@@ -43,8 +43,12 @@ let main argv =
                     ()
                 logIter
             logTrainingProgress
-        let trained = train dataFilesTrain (logPercentProgress (printfn "Training progress: %i%%"))
-        test trained dataFilesTest |> (fun r -> r * 100.0 |> printfn "Learning performance score: %.2f%%")
+        let testingLearningEpoch epoch model =     
+            if epoch > 0 then // Skip initial model    
+                printfn "Testing model from %i epoch:" epoch
+                test model dataFilesTest |> (fun r -> r * 100.0 |> printfn "Learning performance score: %.2f%%")
+        let finalModel = trainDefaultEpochs dataFilesTrain (logPercentProgress (printfn "Training progress: %i%%")) testingLearningEpoch
+        finalModel |> ignore // We already have tested all epoches.
         printfn "Neural network execution completed."
     else
         printfn "Unexpected command '%s'" command

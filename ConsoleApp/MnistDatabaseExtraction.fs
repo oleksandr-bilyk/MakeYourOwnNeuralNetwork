@@ -17,12 +17,13 @@ let saveImage width height (data : byte[]) fileName =
     ()
 
 let extractMnistDatabaseLabeledImages (dataFiles : MnistDataFileNamesPair) destinationFolder =
-    let imagesHeader, labeledImages, dataStreamsDisposable = mnistLabeledImageSequence dataFiles
+    let readFromBegin, dataStreamsDisposable = mnistLabeledImageData dataFiles
     use __ = dataStreamsDisposable
+    let imagesHeader, labeledImages = readFromBegin ()
 
     let imageFileName (index : int) label = 
         let fileName = sprintf "%s-%i.png" ((index + 1).ToString("00000")) label
         Path.Combine(destinationFolder, fileName)
-    let imageBySize = saveImage imagesHeader.ColumnsCount imagesHeader.RowsCount
+    let imageBySize = saveImage imagesHeader.Size.Width imagesHeader.Size.Height
     
     labeledImages |> Seq.iteri (fun i (label, imageData) -> imageBySize imageData (imageFileName i label))

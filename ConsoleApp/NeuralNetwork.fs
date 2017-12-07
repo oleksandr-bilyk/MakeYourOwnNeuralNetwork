@@ -25,7 +25,7 @@ let sigmoidVector = Vector.map (SpecialFunctions.Logistic >> float)
 let query (layers : Matrix<double> list) (inputs : Vector<float>) = List.fold (fun vector matrix -> matrix * vector |> sigmoidVector) inputs layers
 
 // Trains neural network by data sample
-let train (learningRate: float) (allLayerWeigthes: Matrix<float> list) (neuralNetworkInputs: Vector<float>) (neuralNetworkTartets: Vector<float>) =
+let trainSample (learningRate: float) (allLayerWeigthes: Matrix<float> list) (neuralNetworkInputs: Vector<float>) (neuralNetworkTartets: Vector<float>) =
     if List.isEmpty allLayerWeigthes then raise (ArgumentException("At least one layer required."))
     if allLayerWeigthes.Head.ColumnCount <> neuralNetworkInputs.Count then raise (ArgumentException("Input must be multiplied correctly."))
     if (List.last allLayerWeigthes).RowCount <> neuralNetworkTartets.Count then raise (ArgumentException("Target must be multiplied correctly."))
