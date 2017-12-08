@@ -11,7 +11,7 @@ let maxDigit = 9uy
 let countDigit = maxDigit + 1uy |> int
 
 // Experementally taken value.
-let learningRateDefault = 0.2
+let learningRateDefault = 0.1
 
 // Experementally taken value to get balance between underfeet and overfeeding
 let learningEpochsDefault = 4
@@ -42,7 +42,7 @@ let train learningEpochs (dataFilesForTraining : MnistDataFileNamesPair) (totalS
 
     let getInitialData readDataFromBegin = 
         let header, __ = readDataFromBegin ()
-        let getInitialRandomModel imageSize = randomMatrixListNew [imageSize.Height * imageSize.Width;100;countDigit]
+        let getInitialRandomModel imageSize = randomMatrixListNew [imageSize.Height * imageSize.Width;200;countDigit]
         header, getInitialRandomModel header.Size
     let header, randomModel = getInitialData readDataFromBegin
     epochsProgress 0 randomModel
