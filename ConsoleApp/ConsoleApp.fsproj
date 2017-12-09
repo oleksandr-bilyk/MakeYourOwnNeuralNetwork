@@ -6,8 +6,8 @@
   <ItemGroup>
     <Compile Include="NeuralNetwork.fs" />
     <Compile Include="MnistDatabase.fs" />
-    <Compile Include="MnistDatabaseNeuralNetwork.fs" />
     <Compile Include="MnistDatabaseExtraction.fs" />
+    <Compile Include="MnistDatabaseNeuralNetwork.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />

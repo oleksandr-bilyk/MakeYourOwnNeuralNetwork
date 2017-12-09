@@ -27,3 +27,10 @@ let extractMnistDatabaseLabeledImages (dataFiles : MnistDataFileNamesPair) desti
     let imageBySize = saveImage imagesHeader.Size.Width imagesHeader.Size.Height
     
     labeledImages |> Seq.iteri (fun i (label, imageData) -> imageBySize imageData (imageFileName i label))
+
+let saveImageByteLabeled destinationFolder imageSize (label, data) = 
+    let imageFileName label = 
+        let fileName = sprintf "%s.png" ((label).ToString())
+        Path.Combine(destinationFolder, fileName)
+    let imageBySize = saveImage imageSize.Width imageSize.Height
+    imageBySize data (imageFileName label)
