@@ -21,8 +21,8 @@ let extractData () =
     extractToNewFolder dataFilesTrain (Path.Combine(subfolder, "Train"))
     printfn "Files extraction completed."
 
-let trainForBestResult () =
-    // Update progress only when next one percent or total records is processed.
+let trainAndTest (trainingStrategy : TrainingMethod) =
+    // Updates progress only when next one percent or total records is processed.
     let logPercentProgress (percentUpdated : int -> unit) =
         let logTrainingProgress recordCount = 
             let mutable percentOriginal = -1;
@@ -34,10 +34,9 @@ let trainForBestResult () =
                 ()
             logIter
         logTrainingProgress
-    let testingLearningEpoch model =     
-        test model dataFilesTest |> (fun r -> r * 100.0 |> printfn "Learning performance score: %.2f%%")
-    let finalModel = trainDefaultEpochs dataFilesTrain (logPercentProgress (printfn "Training progress: %i%%"))
-    finalModel |> testingLearningEpoch
+
+    let model = trainingStrategy dataFilesTrain (logPercentProgress (printfn "Training progress: %i%%"))
+    test model dataFilesTest |> (fun r -> r * 100.0 |> printfn "Learning performance score: %.2f%%")
     printfn "Neural network execution completed."
 
 let generateNumbersPareidolia () =
@@ -60,9 +59,10 @@ let main argv =
     
     let declarations = [
         { key = 1; title = "Extract handwritten digits as image files."; execute = Some extractData }
-        { key = 2; title = "Train neural network for best recognition result." ; execute = Some trainForBestResult }
-        { key = 3; title = "Generate number Pareidolia images." ; execute = Some generateNumbersPareidolia }
-        { key = 4; title = "Exit" ; execute = None }
+        { key = 2; title = "Train neural network quickly." ; execute = Some (fun () -> trainAndTest trainQuickly) }
+        { key = 3; title = "Train neural network for best recognition result." ; execute = Some (fun () -> trainAndTest trainDefaultEpochs) }
+        { key = 4; title = "Generate number Pareidolia images." ; execute = Some generateNumbersPareidolia }
+        { key = 5; title = "Exit" ; execute = None }
     ]
     
     let rec inputIter () =

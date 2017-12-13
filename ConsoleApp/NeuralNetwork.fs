@@ -25,10 +25,13 @@ let logisticVector = Vector.map SpecialFunctions.Logistic
 /// <summary>Converts neural network layer output to sigmiod-inverse input.</summary>
 let logitVector = Vector.map SpecialFunctions.Logit
 
-// Query trained neural network
-let query (layers : Matrix<double> list) (inputs : Vector<float>) = List.fold (fun vector matrix -> matrix * vector |> logisticVector) inputs layers
+type Model = Matrix<float> list
+type DataVector = Vector<float>
 
-let queryBack  (layers : Matrix<double> list) (outputs : Vector<float>) = 
+// Query trained neural network
+let query (layers : Model) (inputs : DataVector) = List.fold (fun vector matrix -> matrix * vector |> logisticVector) inputs layers
+
+let queryBack  (layers : Model) (outputs : DataVector) = 
     let scaleVectorToNormaziedFloat1 v = 
         let removeLow = v - (Vector.min v)
         let scaleTop = removeLow / (Vector.max removeLow)
@@ -40,7 +43,7 @@ let queryBack  (layers : Matrix<double> list) (outputs : Vector<float>) =
     layers |> List.rev |> List.fold queryBackIter outputs
 
 // Trains neural network by data sample
-let trainSample (learningRate: float) (allLayerWeigthes: Matrix<float> list) (neuralNetworkInputs: Vector<float>) (neuralNetworkTartets: Vector<float>) =
+let trainSample (learningRate: float) (allLayerWeigthes: Model) (neuralNetworkInputs: DataVector) (neuralNetworkTartets: DataVector) =
     if List.isEmpty allLayerWeigthes then raise (ArgumentException("At least one layer required."))
     if allLayerWeigthes.Head.ColumnCount <> neuralNetworkInputs.Count then raise (ArgumentException("Input must be multiplied correctly."))
     if (List.last allLayerWeigthes).RowCount <> neuralNetworkTartets.Count then raise (ArgumentException("Target must be multiplied correctly."))
@@ -50,7 +53,7 @@ let trainSample (learningRate: float) (allLayerWeigthes: Matrix<float> list) (ne
         | weightMatrix :: sublayers -> 
             let nextInputs = weightMatrix * previousOutputs
             let nextOutputs = nextInputs |> logisticVector
-            let (nextErrors : Vector<float>), sublayersUpdated = iter nextOutputs sublayers
+            let (nextErrors : DataVector), sublayersUpdated = iter nextOutputs sublayers
             
             let weightMatrixDelta = 
                 DenseMatrix.ofColumns [nextErrors.PointwiseMultiply(nextOutputs).PointwiseMultiply(1.0 - nextOutputs)]

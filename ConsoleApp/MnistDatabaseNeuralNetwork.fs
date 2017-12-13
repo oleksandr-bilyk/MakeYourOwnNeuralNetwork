@@ -28,6 +28,7 @@ let outputVectorTarget digit =
 
 type TrainingDurationParameters = { learningEpochs : int; takeItems : int option }
 
+/// Allows to modify source data sequence to improve either performance or increase training data.
 type ChannelDescription = {
     PredictItemsCount : int -> int
     Collect : (byte * byte[]) seq -> (byte * byte[]) seq
@@ -35,7 +36,9 @@ type ChannelDescription = {
 
 let dataSecuenceCollectingMapping = List.map (fun c -> c.Collect) >> List.fold ( >> ) id
 
-let trainWithChanels header dataSeq (channels : ChannelDescription list) totalProgressUpdate =
+type SourceDataSequenceChannelChain = ChannelDescription list
+
+let trainWithChanels header dataSeq (channels : SourceDataSequenceChannelChain) totalProgressUpdate =
     let getInitialRandomModel imageSize = randomMatrixList [imageSize.Height * imageSize.Width;200;countDigit]
     let randomModel = getInitialRandomModel header.Size
     let totalImageCount = channels |> List.map (fun c -> c.PredictItemsCount) |> List.fold (fun c f -> f c) header.ImagesCount
@@ -79,10 +82,18 @@ let imageMutationChannel imageSize = {
     )
 }
 
-let trainDefaultEpochs dataFilesForTraining logTrainingProgress = 
+type ProgressHandler = int -> int64 -> unit
+
+type TrainingMethod = MnistDataFileNamesPair -> ProgressHandler -> Model
+
+let trainQuickly dataFilesForTraining (logTrainingProgress : ProgressHandler) = 
     let header, readFromBegine, mnistDisposableComposit = mnistLabeledImageDataExt dataFilesForTraining 
     use __ = mnistDisposableComposit
+    trainWithChanels header readFromBegine [ takeFirstChannel 10000 ] logTrainingProgress
 
+let trainDefaultEpochs dataFilesForTraining (logTrainingProgress : ProgressHandler) = 
+    let header, readFromBegine, mnistDisposableComposit = mnistLabeledImageDataExt dataFilesForTraining 
+    use __ = mnistDisposableComposit
     trainWithChanels header readFromBegine [ takeFirstChannel 100000; imageMutationChannel header.Size; learningEpochsDefault ] logTrainingProgress
 
 let test (model: Matrix<float> list) (dataFilesForTesting : MnistDataFileNamesPair) =
