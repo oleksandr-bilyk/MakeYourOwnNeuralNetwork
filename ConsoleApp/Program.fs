@@ -1,7 +1,6 @@
 ﻿module Program
 
 open MnistDatabase
-open MnistDatabaseExtraction
 open MnistDatabaseNeuralNetwork
 open System
 open System.IO
@@ -35,12 +34,10 @@ let trainForBestResult () =
                 ()
             logIter
         logTrainingProgress
-    let testingLearningEpoch epoch model =     
-        if epoch > 0 then // Skip initial model    
-            printfn "Testing model from %i epoch:" epoch
-            test model dataFilesTest |> (fun r -> r * 100.0 |> printfn "Learning performance score: %.2f%%")
-    let finalModel = trainDefaultEpochs dataFilesTrain (logPercentProgress (printfn "Training progress: %i%%")) testingLearningEpoch
-    finalModel |> ignore
+    let testingLearningEpoch model =     
+        test model dataFilesTest |> (fun r -> r * 100.0 |> printfn "Learning performance score: %.2f%%")
+    let finalModel = trainDefaultEpochs dataFilesTrain (logPercentProgress (printfn "Training progress: %i%%"))
+    finalModel |> testingLearningEpoch
     printfn "Neural network execution completed."
 
 let generateNumbersPareidolia () =
@@ -58,6 +55,7 @@ type CommandDeclaration = { key : int; title : string; execute : option<unit -> 
 
 [<EntryPoint>]
 let main argv =
+
     argv |> ignore
     
     let declarations = [

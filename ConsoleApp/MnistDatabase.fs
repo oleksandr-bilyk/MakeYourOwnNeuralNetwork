@@ -31,11 +31,7 @@ let mnistImagesHeader stream =
 let mnistImagesSeq header stream = 
     let binaryReader = new BinaryReader(stream)
     let imageByteSize = header.Size.Height * header.Size.Width
-    seq { 
-        for i = 1 to header.ImagesCount do 
-            yield binaryReader.ReadBytes(imageByteSize)
-            if i = header.ImagesCount then stream.Close()
-    }
+    seq { for __ = 1 to header.ImagesCount do yield binaryReader.ReadBytes(imageByteSize)}
 
 let mnistImagesData stream = 
     let header = mnistImagesHeader stream
@@ -51,11 +47,7 @@ let mnistLabelsHeader stream =
 
 let mnistLabelsSeq itemsCount stream = 
     let binaryReader = new BinaryReader(stream)
-    seq { 
-        for i = 1 to itemsCount do 
-            yield binaryReader.ReadByte() 
-            if i = itemsCount then stream.Close()
-    }
+    seq { for __ = 1 to itemsCount do yield binaryReader.ReadByte() }
 
 let mnistLabelsData stream : (int * byte seq) = 
     let itemsCount = mnistLabelsHeader stream
@@ -67,35 +59,57 @@ let mnistLabelsData stream : (int * byte seq) =
 // Labels file contains number digits depicted on images.
 type MnistDataFileNamesPair = { Labels: string; Images: string }
 
+let extractFile compressedFileName =
+    use source = File.OpenRead(compressedFileName)
+    let destinationFileName = Path.GetTempFileName()
+    let destination = File.Create(destinationFileName)
+    let gzipStream = new GZipStream(source, CompressionMode.Decompress, true) 
+    gzipStream.CopyTo(destination)
+    destination.Position <- 0L
+    let removeFile = { 
+        new IDisposable with 
+            member __.Dispose() = 
+                destination.Dispose()
+                if (File.Exists(destinationFileName)) then File.Delete(destinationFileName)
+    }
+    destination, removeFile
+
+let disposableComposite (disposables : IDisposable list) = { 
+    new IDisposable with 
+        member __.Dispose() = disposables |> List.iter (fun d -> d.Dispose())
+}
+
 // Data files may be opened once but read all sequence multiple times.
-let mnistLabeledImageData (dataFiles : MnistDataFileNamesPair) =
-    let imagesComplressedStream = File.OpenRead(dataFiles.Images) 
+let mnistLabeledImageDataExt (dataFiles : MnistDataFileNamesPair) =
+    let imagesStream, imageStorage = extractFile dataFiles.Images
     try
-        let labelsCompressedStream = File.OpenRead(dataFiles.Labels)
+        let labelsStream, labelsStorage = extractFile dataFiles.Labels
         try
-            let readFromBegine () = 
-                imagesComplressedStream.Position <- 0L
-                let imagesDataStream = new GZipStream(imagesComplressedStream, CompressionMode.Decompress, true)
-                let imagesHeader, imagesDataSeq = mnistImagesData imagesDataStream
-                
-                labelsCompressedStream.Position <- 0L
-                let labelsDataStream = new GZipStream(labelsCompressedStream, CompressionMode.Decompress, true)
-                let labelsCount, labelSeq = mnistLabelsData labelsDataStream
-                
-                if imagesHeader.ImagesCount <> labelsCount then raise (Exception("Images and labals count must be equal."))
-          
-                let combinedSequence = Seq.zip labelSeq imagesDataSeq
+            let imagesHeader = mnistImagesHeader imagesStream
+            let labelsCount = mnistLabelsHeader labelsStream
 
-                imagesHeader, combinedSequence
+            if imagesHeader.ImagesCount <> labelsCount then raise (Exception("Images and labals count must be equal."))
 
-            let disposableComposite = { 
-                new IDisposable with member __.Dispose() = [imagesComplressedStream :> IDisposable; labelsCompressedStream :> IDisposable] |> List.iter (fun d -> d.Dispose())
+            let imageDataStartPosition = imagesStream.Position
+            let labelsDataStartPosition = labelsStream.Position
+
+            let dataSeq = seq {
+                imagesStream.Position <- imageDataStartPosition
+                let imagesSeq = mnistImagesSeq imagesHeader imagesStream
+                
+                labelsStream.Position <- labelsDataStartPosition
+                let labelsSeq = mnistLabelsSeq labelsCount labelsStream 
+
+                yield! Seq.zip labelsSeq imagesSeq
             }
 
-            readFromBegine, disposableComposite
+            let mnistDisposableComposit = disposableComposite [imagesStream :> IDisposable; imageStorage; labelsStream :> IDisposable; labelsStorage] 
+            imagesHeader, dataSeq, mnistDisposableComposit
         with | _ ->
-            labelsCompressedStream.Dispose()
+            labelsStream.Dispose()
+            labelsStorage.Dispose()
             reraise()
     with | _ ->
-        imagesComplressedStream.Dispose()
+        imagesStream.Dispose()
+        imageStorage.Dispose()
         reraise()    

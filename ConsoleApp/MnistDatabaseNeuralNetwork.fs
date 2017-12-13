@@ -7,6 +7,7 @@ open System
 open MathNet.Numerics.LinearAlgebra.VectorExtensions
 open MathNet.Numerics.LinearAlgebra
 open MnistDatabaseExtraction
+open System.IO
 
 let minDigit = 0uy
 let maxDigit = 9uy
@@ -15,72 +16,78 @@ let countDigit = maxDigit + 1uy |> int
 // Experementally taken value.
 let learningRateDefault = 0.1
 
-// Experementally taken value to get balance between underfeet and overfeeding
-let learningEpochsDefault = 4
-
 let byteToNNInput (v : byte) = (float v) / (float Byte.MaxValue) |> normalizeFloat1
 let nnImputToByte (v : float) = (v |> denormalizeFloat1) * (float Byte.MaxValue) |> byte
 
 let normalizeLabeledImageSequence labeledImages = labeledImages |> Seq.map (fun (label, data) -> label, (data |> Seq.map byteToNNInput |> Seq.toList))
 
-let mnistLabeledDataNormalizedSequence (dataFiles : MnistDataFileNamesPair) =
-    let readFromBegin, disposableComposite = mnistLabeledImageData dataFiles
-    let imagesHeader, labeledImages = readFromBegin ()
-    let labeledDataNormanized = labeledImages |> normalizeLabeledImageSequence
-    imagesHeader, labeledDataNormanized, disposableComposite
-
 let outputVectorTarget digit =
     if digit < minDigit || digit > maxDigit then raise (ArgumentException(sprintf "Digit must be in range %i-%i." minDigit maxDigit))
     [for __ = 1uy to digit do yield normalizeFloat0] @ (normalizeFloat1 1.0)::[for __ = digit + 1uy to maxDigit do yield normalizeFloat0]
     |> vector
-let trainByDataSeq model logIteration data =
-    let learningIteration (iterationIndex, model) (target, data) = 
-        let modelUpdated = trainSample learningRateDefault model (vector data) (target |> outputVectorTarget)
-        logIteration iterationIndex
-        iterationIndex + 1, modelUpdated
-    let __, trainedModel = data |> Seq.fold learningIteration (0, model)
-    trainedModel
 
 type TrainingDurationParameters = { learningEpochs : int; takeItems : int option }
-let train trainingDurationParameters (dataFilesForTraining : MnistDataFileNamesPair) (totalSamplesProgress : int -> int -> unit) epochsProgress =
-    let readDataFromBegin, disposableComposite = mnistLabeledImageData dataFilesForTraining 
-    use __ = disposableComposite
 
-    let getInitialData readDataFromBegin = 
-        let header, __ = readDataFromBegin ()
-        let getInitialRandomModel imageSize = randomMatrixList [imageSize.Height * imageSize.Width;200;countDigit]
-        header, getInitialRandomModel header.Size
-    let header, randomModel = getInitialData readDataFromBegin
-    epochsProgress 0 randomModel
-    let getDataSequence () = 
-        let __, dataSequence = readDataFromBegin ()
-        dataSequence |> normalizeLabeledImageSequence
-    
-    let imagesCountForProgress, itemsTake = 
-        match trainingDurationParameters.takeItems with 
-        | None -> header.ImagesCount, (id)
-        | Some c -> 
-            let checkedCount = min c header.ImagesCount
-            checkedCount, Seq.take checkedCount
-    let logTrainingProgressTotalInitialize = totalSamplesProgress (imagesCountForProgress * trainingDurationParameters.learningEpochs)
-    let logIteration epochIndex iterationIdexInEpoch = logTrainingProgressTotalInitialize (epochIndex * imagesCountForProgress + iterationIdexInEpoch)
-    let rec trainingEpoch epochIndex model =
-        if (epochIndex >= trainingDurationParameters.learningEpochs) then model
-        else 
-            let logIterationForEpoch = logIteration epochIndex
-            let modelNew = getDataSequence () |> itemsTake |> trainByDataSeq model logIterationForEpoch
-            epochsProgress (epochIndex + 1) modelNew
-            trainingEpoch (epochIndex + 1) modelNew
-    let resultModel = trainingEpoch 0 randomModel
-    header.Size, resultModel
+type ChannelDescription = {
+    PredictItemsCount : int -> int
+    Collect : (byte * byte[]) seq -> (byte * byte[]) seq
+}
+
+let dataSecuenceCollectingMapping = List.map (fun c -> c.Collect) >> List.fold ( >> ) id
+
+let trainWithChanels header dataSeq (channels : ChannelDescription list) totalProgressUpdate =
+    let getInitialRandomModel imageSize = randomMatrixList [imageSize.Height * imageSize.Width;200;countDigit]
+    let randomModel = getInitialRandomModel header.Size
+    let totalImageCount = channels |> List.map (fun c -> c.PredictItemsCount) |> List.fold (fun c f -> f c) header.ImagesCount
+    let totalDataSeq = dataSeq |> dataSecuenceCollectingMapping channels |> normalizeLabeledImageSequence
+
+    let updateIteration = totalProgressUpdate totalImageCount
+    let learningIteration (iterationIndex, model) (target, data) = 
+        let modelUpdated = trainSample learningRateDefault model (vector data) (target |> outputVectorTarget)
+        updateIteration iterationIndex
+        iterationIndex + 1L, modelUpdated
+    totalDataSeq |> Seq.fold learningIteration (0L, randomModel) |> snd
+
+let epochsChanel epochsCount = { 
+    PredictItemsCount = epochsCount |> (*)
+    Collect = (fun sourceSeq -> seq { 1 .. epochsCount} |> Seq.collect (fun _ -> sourceSeq))
+}
+
+// Experementally taken value to get balance between underfeet and overfeeding
+let learningEpochsDefault = epochsChanel 4
+
+let takeFirstChannel number = {
+    PredictItemsCount = min number;
+    Collect = Seq.truncate number
+}
+
+let rotateDataImage angelDegree = (fun size -> rotateImageData angelDegree size.Width size.Height)
+let defaultRotationAmplitude = 10.0F
+let mutationProviders = [
+    (fun __ -> id) // no rotation
+    rotateDataImage defaultRotationAmplitude
+    rotateDataImage -defaultRotationAmplitude
+]
+
+let imageMutationChannel imageSize = {
+    PredictItemsCount = mutationProviders |> List.length  |> (*)
+    Collect = (fun sourceSeq -> 
+        mutationProviders |> Seq.collect (fun rotationProvider -> 
+            let rotation = rotationProvider imageSize
+            sourceSeq |> Seq.map (fun (label, data) -> label, (rotation data))
+        )
+    )
+}
 
 let trainDefaultEpochs dataFilesForTraining logTrainingProgress = 
-    train { learningEpochs = learningEpochsDefault; takeItems = None } dataFilesForTraining logTrainingProgress
+    let header, readFromBegine, mnistDisposableComposit = mnistLabeledImageDataExt dataFilesForTraining 
+    use __ = mnistDisposableComposit
+
+    trainWithChanels header readFromBegine [ takeFirstChannel 100000; imageMutationChannel header.Size; learningEpochsDefault ] logTrainingProgress
 
 let test (model: Matrix<float> list) (dataFilesForTesting : MnistDataFileNamesPair) =
-    let readFromBegin, disposableComposite = mnistLabeledImageData dataFilesForTesting 
-    use __ = disposableComposite
-    let imagesHeader, dataSequence = readFromBegin ()
+    let imagesHeader, readFromBegine, mnistDisposableComposit = mnistLabeledImageDataExt dataFilesForTesting 
+    use __ = mnistDisposableComposit
 
     let predictedNumberProbabilitySortedDesc (output : float array) =
         if (output |> Seq.length) <> countDigit  then raise (ArgumentException(sprintf "Digit must be in range %i-%i." minDigit maxDigit))
@@ -90,12 +97,15 @@ let test (model: Matrix<float> list) (dataFilesForTesting : MnistDataFileNamesPa
         let resultList = query model (vector data)
         let resultTop = resultList.ToArray() |> predictedNumberProbabilitySortedDesc
         ((target |> int) = (resultTop.[0] |> fst))
-    let scoredCount = dataSequence |> normalizeLabeledImageSequence |> Seq.filter iter |> Seq.length
+    let scoredCount = readFromBegine |> normalizeLabeledImageSequence |> Seq.filter iter |> Seq.length
     (scoredCount |> float) / (imagesHeader.ImagesCount |> float)
-    
+
 let generateAndSaveNumbersPareidolia dataFilesForTraining folder = 
-    let imageSize, model = train { learningEpochs = 1; takeItems = Some 1000 } dataFilesForTraining (fun _ _ -> ()) (fun _ _ -> ())
-    let saveImagesSized = saveImageByteLabeled folder imageSize
+    let header, readFromBegine, mnistDisposableComposit = mnistLabeledImageDataExt dataFilesForTraining 
+    use __ = mnistDisposableComposit
+
+    let model = trainWithChanels header readFromBegine [ (takeFirstChannel 1000) ] (fun _ _ -> ())
+    let saveImagesSized = saveImageByteLabeled folder header.Size
     [minDigit .. maxDigit] 
     |> List.map 
         (fun label -> 
@@ -105,3 +115,14 @@ let generateAndSaveNumbersPareidolia dataFilesForTraining folder =
             label, dreamImageByteArray
         )        
     |> List.iter saveImagesSized
+
+let extractMnistDatabaseLabeledImages (dataFiles : MnistDataFileNamesPair) destinationFolder =
+    let imagesHeader, readFromBegine, mnistDisposableComposit = mnistLabeledImageDataExt dataFiles
+    use __ = mnistDisposableComposit
+
+    let imageFileName (index : int) label = 
+        let fileName = sprintf "%s-%i.png" ((index + 1).ToString("00000")) label
+        Path.Combine(destinationFolder, fileName)
+    let imageBySize = saveImage imagesHeader.Size.Width imagesHeader.Size.Height
+    
+    readFromBegine |> Seq.iteri (fun i (label, imageData) -> imageBySize imageData (imageFileName i label))
